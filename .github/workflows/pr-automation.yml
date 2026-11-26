@@ -1,0 +1,32 @@
+name: PR automation
+
+on:
+  push:
+    branches:
+      - demo/pr-automation
+
+permissions: {}
+
+jobs:
+  automate:
+    if: github.repository == 'lev999/ai-code-review-demo'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Check out the pushed support revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Run the public request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: python3 automation/bot.py

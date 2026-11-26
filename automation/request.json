@@ -1,0 +1,9 @@
+{
+  "action": "open_pr",
+  "head_branch": "demo/two-list-feature",
+  "head_sha": "f0b53c98878cfb6dbc114592e71d44a74aaf2cc5",
+  "base_branch": "main",
+  "base_sha": "8d6f39d2a48d432505fca68e9aa3298f7778bce9",
+  "title": "Move one selected task and preserve both lists after reload",
+  "body": "Simulation case: feature\nRules added, changed, and removed (IDs or write none): added RULE-BOARD-001, RULE-BOARD-002, RULE-SELECT-001, RULE-SELECT-002, RULE-MOVE-001, RULE-SAVE-001, RULE-API-001, RULE-API-002, RULE-API-003, RULE-DATA-001, and RULE-TEST-001\nOld behavior: the board showed two seeded tasks. Selection could not enable a move.\nNew behavior: select one task, move it to Done, and reload to see that the other task stays in To do.\nTests added: [web/tests/task_state.test.js](https://github.com/lev999/ai-code-review-demo/blob/f0b53c98878cfb6dbc114592e71d44a74aaf2cc5/web/tests/task_state.test.js), [api/tests/test_tasks_api.py](https://github.com/lev999/ai-code-review-demo/blob/f0b53c98878cfb6dbc114592e71d44a74aaf2cc5/api/tests/test_tasks_api.py), [web/tests/e2e/test_board.mjs](https://github.com/lev999/ai-code-review-demo/blob/f0b53c98878cfb6dbc114592e71d44a74aaf2cc5/web/tests/e2e/test_board.mjs)\nTests removed: none\nRelevant tests and runs: [red hosted job](https://github.com/lev999/ai-code-review-demo/actions/runs/45890153327/job/140150538393)\nReviewer role: simulated by an independent agent\n\n[SIMULATED FEATURE REQUEST](https://github.com/lev999/ai-code-review-demo/blob/b09da9474d68f04be6138ae4208cda81c3f4ae09/specs/synthetic-feature-request.md) and [SIMULATED PRODUCT RULES](https://github.com/lev999/ai-code-review-demo/blob/b09da9474d68f04be6138ae4208cda81c3f4ae09/AGENTS.md) were written by the demo executor. This is the test-only revision. The current failure is expected. The implementation and its new run will follow on this branch."
+}
