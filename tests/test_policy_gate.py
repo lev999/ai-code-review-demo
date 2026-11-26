@@ -2,6 +2,7 @@
 
 import hashlib
 import unittest
+from unittest.mock import patch
 
 from policy import gate
 
@@ -22,7 +23,7 @@ def entry(data, label):
     return ("100644", "blob", hashlib.sha1(label.encode()).hexdigest(), data)
 
 
-def summary(case="judgment", body_links=True):
+def summary(case="judgment", body_links=True, tests_added="none", tests_removed="none"):
     links = f"[PR]({PR_URL}) [CI]({RUN_URL})" if body_links else "none"
     role = "not required" if case == "routine" else "simulated by an independent agent"
     return "\n".join((
@@ -30,8 +31,8 @@ def summary(case="judgment", body_links=True):
         "Rules added, changed, and removed (give IDs or write none): RULE-1",
         "Old behavior: Move one task.",
         "New behavior: Move the selected tasks.",
-        "Tests added: none",
-        "Tests removed: none",
+        f"Tests added: {tests_added}",
+        f"Tests removed: {tests_removed}",
         f"Relevant tests and runs: {links}",
         f"Reviewer role: {role}",
     ))
@@ -269,6 +270,67 @@ class PolicyGateTests(unittest.TestCase):
         self.changed = [{"filename": "api/app.py", "status": "modified"}]
         state, _ = self.evaluate([comment(515, "approved")])
         self.assertEqual(state, "failure")
+
+    def test_tests_added_and_removed_require_verified_test_file_links(self):
+        self.head_tree["api/app.py"] = entry(b"changed behavior\n", "behavior")
+        self.changed = [{"filename": "api/app.py", "status": "modified"}]
+        test_url = f"{REPO}/blob/{BASE}/tests/test_added.py"
+        self.pr["body"] = summary(tests_added=f"[new test]({test_url})")
+        self.evidence[test_url] = {
+            "valid": True,
+            "kind": "history",
+            "ancestor": True,
+            "path": "tests/test_added.py",
+        }
+        state, _ = self.evaluate([comment(523, "approved")])
+        self.assertEqual(state, "success")
+
+        self.evidence[test_url]["path"] = "api/app.py"
+        state, reason = self.evaluate([comment(524, "approved")])
+        self.assertEqual(state, "failure")
+        self.assertIn("verified test files", reason)
+
+    def test_policy_input_fingerprint_tracks_summary_and_verdict_edits(self):
+        pr = self.pull()
+        verdict = comment(525, "approved")
+        baseline = gate.policy_input_fingerprint(pr, [verdict])
+        irrelevant = {"id": 10, "body": "A general discussion comment", "updated_at": "now"}
+        self.assertEqual(gate.policy_input_fingerprint(pr, [verdict, irrelevant]), baseline)
+
+        edited_pr = dict(pr, body=summary("routine"))
+        self.assertNotEqual(gate.policy_input_fingerprint(edited_pr, [verdict]), baseline)
+        edited_verdict = dict(verdict, body=verdict["body"] + "\n")
+        self.assertNotEqual(gate.policy_input_fingerprint(pr, [edited_verdict]), baseline)
+        edited_verdict = dict(verdict, updated_at="2026-11-26T10:01:00Z")
+        self.assertNotEqual(gate.policy_input_fingerprint(pr, [edited_verdict]), baseline)
+
+    def test_changed_input_downgrades_success_before_publication(self):
+        with (
+            patch.object(gate, "latest_snapshot_matches", side_effect=[True, True]),
+            patch.object(gate, "latest_policy_inputs_match", return_value=False),
+            patch.object(gate, "post_status") as publish,
+        ):
+            state, reason, published = gate.publish_evaluation_status(
+                object(), 42, BASE, HEAD, "snapshot", "success", "accepted"
+            )
+        self.assertTrue(published)
+        self.assertEqual(state, "failure")
+        self.assertIn("changed during policy evaluation", reason)
+        self.assertEqual(publish.call_args.args[2], "failure")
+
+    def test_changed_input_after_success_publication_revokes_status(self):
+        with (
+            patch.object(gate, "latest_snapshot_matches", side_effect=[True, True]),
+            patch.object(gate, "latest_policy_inputs_match", side_effect=[True, False]),
+            patch.object(gate, "post_status") as publish,
+        ):
+            state, reason, published = gate.publish_evaluation_status(
+                object(), 42, BASE, HEAD, "snapshot", "success", "accepted"
+            )
+        self.assertTrue(published)
+        self.assertEqual(state, "failure")
+        self.assertIn("changed during policy publication", reason)
+        self.assertEqual([call.args[2] for call in publish.call_args_list], ["success", "failure"])
 
     def test_current_live_base_head_and_branch_identity_are_required(self):
         state, reason = self.evaluate(current_main_sha="f" * 40)

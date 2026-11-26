@@ -554,6 +554,14 @@ def evaluate(
         if not summary_urls:
             fail("pull request summary has no repository evidence URLs")
         checked_summary = [_checked_evidence(url, evidence, number, pr_head_sha) for url in summary_urls]
+        for field in ("Tests added", "Tests removed"):
+            value = summary[field]
+            if value.lower() == "none":
+                continue
+            for url in urls_in(value):
+                item = evidence[url]
+                if _evidence_kind(url, evidence, number, pr_head_sha) != "history" or not is_test_file_path(item.get("path")):
+                    fail(f"{field} must link to verified test files")
         relevant = summary["Relevant tests and runs"]
         relevant_urls = urls_in(relevant)
         kinds = {_evidence_kind(url, evidence, number, pr_head_sha) for url in relevant_urls}
@@ -611,6 +619,15 @@ def _evidence_kind(url: str, evidence: dict[str, dict[str, Any]], number: int, h
 def _checked_evidence(url: str, evidence: dict[str, dict[str, Any]], number: int, head: str) -> bool:
     _evidence_kind(url, evidence, number, head)
     return True
+
+
+def is_test_file_path(path: Any) -> bool:
+    if not isinstance(path, str) or not valid_repo_path(path):
+        return False
+    return bool(re.search(
+        r"(?:^|/)(?:test_[^/]+|[^/]+_test|[^/]+\.(?:test|spec))\.(?:py|js|mjs|ts|tsx)$",
+        path,
+    )) and path.startswith(("tests/", "api/tests/", "web/tests/"))
 
 
 def validate_ci(ci: dict[str, Any], evidence: dict[str, dict[str, Any]], number: int, head: str) -> tuple[str, str]:
@@ -828,7 +845,7 @@ class GitHub:
             tree = git.tree(commit)
             if urllib.parse.unquote(path) not in tree:
                 fail("evidence file does not exist at the linked revision")
-            return {"valid": True, "kind": "history", "ancestor": True}
+            return {"valid": True, "kind": "history", "ancestor": True, "path": urllib.parse.unquote(path)}
         run_match = re.fullmatch(r"actions/runs/(\d+)(?:/job/(\d+))?/?", tail)
         if run_match:
             run_id, job_id = run_match.groups()
@@ -934,6 +951,34 @@ def latest_snapshot_matches(github: GitHub, number: int, base_sha: str, head_sha
     )
 
 
+def policy_input_fingerprint(pr: dict[str, Any], comments: list[dict[str, Any]]) -> str:
+    """Hash the PR summary and all comments that can affect a verdict."""
+    verdict_comments = []
+    for comment in comments:
+        body = comment.get("body")
+        if isinstance(body, str) and "SIMULATED REVIEW VERDICT" in body:
+            verdict_comments.append({
+                "id": comment.get("id"),
+                "body": body,
+                "updated_at": comment.get("updated_at"),
+            })
+    verdict_comments.sort(
+        key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":"))
+    )
+    snapshot = {
+        "body": pr.get("body"),
+        "verdict_comments": verdict_comments,
+    }
+    encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return sha256(encoded)
+
+
+def latest_policy_inputs_match(github: GitHub, number: int, fingerprint: str) -> bool:
+    pr = github.pull(number)
+    comments = github.comments(number)
+    return policy_input_fingerprint(pr, comments) == fingerprint
+
+
 def post_status(github: GitHub, head_sha: str, state: str, reason: str) -> None:
     if state not in {"success", "failure", "pending", "error"}:
         state = "error"
@@ -945,6 +990,37 @@ def post_status(github: GitHub, head_sha: str, state: str, reason: str) -> None:
         "description": description,
         "target_url": run_url,
     })
+
+
+def publish_evaluation_status(
+    github: GitHub,
+    number: int,
+    base_sha: str,
+    head_sha: str,
+    input_fingerprint: str,
+    state: str,
+    reason: str,
+) -> tuple[str, str, bool]:
+    """Publish only a current result and revoke success if its inputs moved."""
+    if not latest_snapshot_matches(github, number, base_sha, head_sha):
+        return "failure", "Pull request or trusted base changed during policy evaluation", False
+
+    if state == "success" and not latest_policy_inputs_match(github, number, input_fingerprint):
+        state = "failure"
+        reason = "Pull request summary or verdict comments changed during policy evaluation"
+
+    published_success = state == "success"
+    post_status(github, head_sha, state, reason)
+
+    if not latest_snapshot_matches(github, number, base_sha, head_sha):
+        reason = "Pull request or trusted base changed during policy publication"
+        post_status(github, head_sha, "failure", reason)
+        return "failure", reason, True
+    if published_success and not latest_policy_inputs_match(github, number, input_fingerprint):
+        reason = "Pull request summary or verdict comments changed during policy publication"
+        post_status(github, head_sha, "failure", reason)
+        return "failure", reason, True
+    return state, reason, True
 
 
 def main() -> int:
@@ -967,6 +1043,7 @@ def main() -> int:
         head_tree = git.tree(head_sha)
         required, proof, patches = load_trusted_manifests(git, base_sha)
         removal = required_removal(required, base_tree, head_tree, changed)
+        comments: list[dict[str, Any]] = []
         if removal:
             state, reason = "failure", "Required test removed or renamed: " + ", ".join(removal)
         else:
@@ -1013,15 +1090,18 @@ def main() -> int:
                 evidence=evidence,
                 blob_cache=blob_cache,
             )
-        if latest_snapshot_matches(github, number, base_sha, head_sha):
-            post_status(github, head_sha, state, reason)
-        else:
-            state, reason = "failure", "Pull request or trusted base changed during policy evaluation"
+        input_fingerprint = policy_input_fingerprint(pr, comments)
+        state, reason, published = publish_evaluation_status(
+            github,
+            number,
+            base_sha,
+            head_sha,
+            input_fingerprint,
+            state,
+            reason,
+        )
+        if not published:
             fail(reason)
-        if not latest_snapshot_matches(github, number, base_sha, head_sha):
-            post_status(github, head_sha, "failure", "Pull request or trusted base changed during policy publication")
-            print("failure: pull request or trusted base changed during policy publication")
-            return 1
         print(f"{state}: {reason}")
         return 0 if state == "success" else 1
     except (GateError, OSError, subprocess.SubprocessError) as error:
