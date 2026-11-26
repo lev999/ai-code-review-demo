@@ -69,18 +69,36 @@ def handler_for(db_path: str | Path):
 
             task_id = unquote(match.group(1))
             with closing(connect(db_path)) as connection:
+                # Lock the rows before checking state so concurrent move
+                # requests cannot both act on the same To do task.
+                connection.execute("BEGIN IMMEDIATE")
                 task = connection.execute(
                     "SELECT list_name FROM tasks WHERE id = ?", (task_id,)
                 ).fetchone()
 
-            if task is None:
-                self.send_json(404, {"error": "Task not found"})
-            elif task["list_name"] != "todo":
-                self.send_json(409, {"error": "Task is not in To do"})
-            else:
-                # H4 implements the one-task update. Keep this response in the
-                # red-test baseline so the missing behavior has a clear result.
-                self.send_json(501, {"error": "Move operation is not implemented"})
+                if task is None:
+                    connection.rollback()
+                    result = (404, {"error": "Task not found"})
+                elif task["list_name"] != "todo":
+                    connection.rollback()
+                    result = (409, {"error": "Task is not in To do"})
+                else:
+                    next_position = connection.execute(
+                        "SELECT COALESCE(MAX(position), -1) + 1 FROM tasks WHERE list_name = 'done'"
+                    ).fetchone()[0]
+                    updated = connection.execute(
+                        "UPDATE tasks SET list_name = 'done', position = ? "
+                        "WHERE id = ? AND list_name = 'todo'",
+                        (next_position, task_id),
+                    )
+                    if updated.rowcount != 1:
+                        connection.rollback()
+                        result = (409, {"error": "Task is not in To do"})
+                    else:
+                        connection.commit()
+                        result = (200, {"id": task_id, "list": "done"})
+
+            self.send_json(*result)
 
         def log_message(self, format: str, *args: object) -> None:
             # Keep local and CI output free of host-specific request details.
