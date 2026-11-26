@@ -1,17 +1,9 @@
 {
-  "action": "verdict_comment",
-  "pr_number": 7,
-  "case_id": "H9",
-  "head_sha": "312da3e35e0d2653a33461b6934ab3461c019cdb",
+  "action": "open_pr",
+  "head_branch": "demo/missing-browser-persistence",
+  "head_sha": "1f713f16e7915bdf69e738e33d33902f75fd25dd",
   "base_branch": "main",
   "base_sha": "60a8a4c2cffe3096c3c6d61577ff32bd6afedbb8",
-  "decision": "approved",
-  "reason": "The independent reviewer inspected the detailed hosted output and the linked assertions. The successful move persists both Done rows after reload. The mixed batch is rejected and preserves both original rows. The exact head and hosted job are the same as in the first review.",
-  "evidence_links": [
-    "https://github.com/lev999/ai-code-review-demo/pull/7/files",
-    "https://github.com/lev999/ai-code-review-demo/actions/runs/45896366739/job/140171144529",
-    "https://github.com/lev999/ai-code-review-demo/blob/312da3e35e0d2653a33461b6934ab3461c019cdb/web/tests/e2e/test_batch_moves.mjs",
-    "https://github.com/lev999/ai-code-review-demo/blob/312da3e35e0d2653a33461b6934ab3461c019cdb/specs/move-two-tasks.feature"
-  ],
-  "supersedes": 7203512892
+  "title": "Demonstrate removal of the required browser persistence test",
+  "body": "Simulation case: required-test removal\nRules added, changed, and removed (give IDs or write none): none. The SIMULATED FEATURE REQUEST and SIMULATED PRODUCT RULES still require the reload check.\nOld behavior: the full suite includes the required browser and SQLite check after reload.\nNew behavior: the application code stays the same. This patch deletes that check. The remaining component and API checks can still run.\nTests added: none\nTests removed: [web/tests/e2e/test_board.mjs](https://github.com/lev999/ai-code-review-demo/blob/60a8a4c2cffe3096c3c6d61577ff32bd6afedbb8/web/tests/e2e/test_board.mjs)\nRelevant tests and runs: [exact deletion](https://github.com/lev999/ai-code-review-demo/commit/1f713f16e7915bdf69e738e33d33902f75fd25dd) [full suite](https://github.com/lev999/ai-code-review-demo/actions/runs/45896773260/job/140172498769) [remaining component and API checks](https://github.com/lev999/ai-code-review-demo/actions/runs/45896773260/job/140172627359)\nReviewer role: not required"
 }
