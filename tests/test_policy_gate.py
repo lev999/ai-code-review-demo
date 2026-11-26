@@ -194,6 +194,31 @@ class PolicyGateTests(unittest.TestCase):
         state, _ = self.evaluate([stale, current_negative, current_positive])
         self.assertEqual(state, "success")
 
+    def test_stale_malformed_role_is_ignored_only_for_its_explicit_old_head(self):
+        self.head_tree["api/app.py"] = entry(b"changed behavior\n", "behavior")
+        self.changed = [{"filename": "api/app.py", "status": "modified"}]
+        stale = comment(526, "approved", head="c" * 40)
+        stale["body"] = stale["body"].replace(
+            "This is a simulated reviewer-agent decision. It is not a human review or approval.",
+            "This is an old automated note with different role wording.",
+        )
+        current = comment(527, "approved", created="2026-11-26T10:01:00Z")
+
+        parsed, stale_found = gate.current_verdict_comments([stale, current], HEAD)
+        self.assertTrue(stale_found)
+        self.assertEqual([item["id"] for item in parsed], [527])
+        state, _ = self.evaluate([stale, current])
+        self.assertEqual(state, "success")
+
+        state, reason = self.evaluate([stale])
+        self.assertEqual(state, "failure")
+        self.assertIn("Only stale", reason)
+
+        malformed_current = dict(stale, id=528, body=stale["body"].replace("`" + "c" * 40 + "`", f"`{HEAD}`"))
+        state, reason = self.evaluate([malformed_current])
+        self.assertEqual(state, "failure")
+        self.assertIn("malformed", reason)
+
     def test_same_pull_cannot_authorize_its_gate_or_manifest_change(self):
         self.pr = self.pull("routine")
         path = "policy/routine-patches.json"
@@ -331,6 +356,68 @@ class PolicyGateTests(unittest.TestCase):
         self.assertEqual(state, "failure")
         self.assertIn("changed during policy publication", reason)
         self.assertEqual([call.args[2] for call in publish.call_args_list], ["success", "failure"])
+
+    def test_exact_native_merge_preserves_success_and_other_merges_fail_closed(self):
+        pr = self.pull("routine")
+        pr.update({
+            "state": "closed",
+            "merged": True,
+            "merged_at": "2026-11-26T10:02:00Z",
+            "merge_commit_sha": "c" * 40,
+        })
+        comments = []
+        fingerprint = gate.policy_input_fingerprint(pr, comments)
+
+        class FakeGitHub:
+            def __init__(self, parents):
+                self.parents = parents
+
+            def pull(self, number):
+                return pr
+
+            def request(self, method, path):
+                self.asserted_request = (method, path)
+                return {"parents": self.parents}
+
+            def comments(self, number):
+                return comments
+
+        valid = FakeGitHub([BASE, HEAD])
+        with (
+            patch.object(gate, "latest_snapshot_matches", side_effect=[True, False]),
+            patch.object(gate, "latest_policy_inputs_match", return_value=True),
+            patch.object(gate, "post_status") as publish,
+        ):
+            state, reason, published = gate.publish_evaluation_status(
+                valid, 42, BASE, HEAD, fingerprint, "success", "accepted"
+            )
+        self.assertTrue(published)
+        self.assertEqual((state, reason), ("success", "accepted"))
+        self.assertEqual([call.args[2] for call in publish.call_args_list], ["success"])
+        self.assertEqual(valid.asserted_request, ("GET", f"git/commits/{'c' * 40}"))
+
+        invalid = FakeGitHub([HEAD, BASE])
+        self.assertFalse(gate.exact_merged_snapshot_matches(invalid, 42, BASE, HEAD, fingerprint))
+        with (
+            patch.object(gate, "latest_snapshot_matches", side_effect=[True, False]),
+            patch.object(gate, "latest_policy_inputs_match", return_value=True),
+            patch.object(gate, "post_status") as publish,
+        ):
+            state, _, published = gate.publish_evaluation_status(
+                invalid, 42, BASE, HEAD, fingerprint, "success", "accepted"
+            )
+        self.assertTrue(published)
+        self.assertEqual(state, "failure")
+        self.assertEqual([call.args[2] for call in publish.call_args_list], ["success", "failure"])
+
+        changed_comments = [{"id": 2, "body": "SIMULATED REVIEW VERDICT edited", "updated_at": "later"}]
+
+        class ChangedInputGitHub(FakeGitHub):
+            def comments(self, number):
+                return changed_comments
+
+        changed_inputs = ChangedInputGitHub([BASE, HEAD])
+        self.assertFalse(gate.exact_merged_snapshot_matches(changed_inputs, 42, BASE, HEAD, fingerprint))
 
     def test_current_live_base_head_and_branch_identity_are_required(self):
         state, reason = self.evaluate(current_main_sha="f" * 40)

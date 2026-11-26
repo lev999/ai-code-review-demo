@@ -385,6 +385,27 @@ def urls_in(text: str) -> list[str]:
     return URL_RE.findall(text)
 
 
+def verdict_comment_head(comment: dict[str, Any]) -> str | None:
+    body = comment.get("body")
+    if not isinstance(body, str) or "SIMULATED REVIEW VERDICT" not in body:
+        return None
+    fields = re.findall(r"(?m)^Head SHA: ([^\r\n]*)$", body)
+    if len(fields) != 1:
+        return None
+    match = re.fullmatch(r"`([0-9a-f]{40})`", fields[0])
+    return match.group(1) if match else None
+
+
+def is_stale_verdict_comment(comment: dict[str, Any], expected_head: str) -> bool:
+    body = comment.get("body")
+    return (
+        isinstance(body, str)
+        and "SIMULATED REVIEW VERDICT" in body
+        and (comment_head := verdict_comment_head(comment)) is not None
+        and comment_head != expected_head
+    )
+
+
 def parse_verdict_comment(comment: dict[str, Any]) -> dict[str, Any] | None:
     body = comment.get("body")
     if not isinstance(body, str) or "SIMULATED REVIEW VERDICT" not in body:
@@ -429,14 +450,32 @@ def parse_verdict_comment(comment: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def current_verdict_comments(comments: list[dict[str, Any]], expected_head: str) -> tuple[list[dict[str, Any]], bool]:
+    parsed: list[dict[str, Any]] = []
+    stale_found = False
+    for comment in comments:
+        body = comment.get("body")
+        if not isinstance(body, str) or "SIMULATED REVIEW VERDICT" not in body:
+            continue
+        if is_stale_verdict_comment(comment, expected_head):
+            stale_found = True
+            continue
+        item = parse_verdict_comment(comment)
+        if item is not None:
+            if item["head"] != expected_head:
+                fail("simulated verdict comment has an invalid head scope")
+            parsed.append(item)
+    return parsed, stale_found
+
+
 def verdict_state(comments: list[dict[str, Any]], expected_case: str, head_sha: str) -> tuple[str, str, list[str]]:
-    parsed = [item for comment in comments if (item := parse_verdict_comment(comment)) is not None]
+    parsed, stale_found = current_verdict_comments(comments, head_sha)
     ids = [item["id"] for item in parsed]
     if len(ids) != len(set(ids)):
         fail("simulated verdict comments have duplicate IDs")
     current = [item for item in parsed if item["head"] == head_sha]
     if not current:
-        if parsed:
+        if stale_found:
             return "failure", "Only stale simulated verdict comments exist", []
         return "pending", "A current simulated reviewer verdict is required", []
     if any(item["case"] != expected_case for item in current):
@@ -1013,6 +1052,10 @@ def publish_evaluation_status(
     post_status(github, head_sha, state, reason)
 
     if not latest_snapshot_matches(github, number, base_sha, head_sha):
+        if published_success and exact_merged_snapshot_matches(
+            github, number, base_sha, head_sha, input_fingerprint
+        ):
+            return state, reason, True
         reason = "Pull request or trusted base changed during policy publication"
         post_status(github, head_sha, "failure", reason)
         return "failure", reason, True
@@ -1021,6 +1064,54 @@ def publish_evaluation_status(
         post_status(github, head_sha, "failure", reason)
         return "failure", reason, True
     return state, reason, True
+
+
+def exact_merged_snapshot_matches(
+    github: GitHub,
+    number: int,
+    base_sha: str,
+    head_sha: str,
+    input_fingerprint: str,
+) -> bool:
+    """Accept only an exact two-parent merge with unchanged policy inputs."""
+    try:
+        def exact_merge_sha(candidate: Any) -> str | None:
+            if not isinstance(candidate, dict):
+                return None
+            candidate_head = candidate.get("head")
+            candidate_base = candidate.get("base")
+            if (
+                candidate.get("state") != "closed"
+                or candidate.get("merged") is not True
+                or not isinstance(candidate.get("merged_at"), str)
+                or not candidate["merged_at"]
+                or not isinstance(candidate_head, dict)
+                or candidate_head.get("sha") != head_sha
+                or not isinstance(candidate_base, dict)
+                or candidate_base.get("sha") != base_sha
+            ):
+                return None
+            candidate_merge_sha = candidate.get("merge_commit_sha")
+            return candidate_merge_sha if valid_sha(candidate_merge_sha) else None
+
+        pr = github.pull(number)
+        merge_sha = exact_merge_sha(pr)
+        if merge_sha is None:
+            return False
+        commit = github.request("GET", f"git/commits/{merge_sha}")
+        parents = commit.get("parents") if isinstance(commit, dict) else None
+        if not isinstance(parents, list) or len(parents) != 2:
+            return False
+        parent_shas = [parent.get("sha") if isinstance(parent, dict) else parent for parent in parents]
+        if parent_shas != [base_sha, head_sha]:
+            return False
+        latest_pr = github.pull(number)
+        if exact_merge_sha(latest_pr) != merge_sha:
+            return False
+        comments = github.comments(number)
+        return policy_input_fingerprint(latest_pr, comments) == input_fingerprint
+    except (GateError, KeyError, TypeError, AttributeError, OSError, subprocess.SubprocessError):
+        return False
 
 
 def main() -> int:
@@ -1054,10 +1145,8 @@ def main() -> int:
             summary = parse_summary(pr.get("body"))
             for url in urls_in("\n".join(summary.values())):
                 evidence[url] = github.verify_evidence(url, git, number, head_sha)
-            for comment in comments:
-                parsed_comment = parse_verdict_comment(comment)
-                if parsed_comment is None or parsed_comment["head"] != head_sha:
-                    continue
+            current_comments, _ = current_verdict_comments(comments, head_sha)
+            for parsed_comment in current_comments:
                 for url in parsed_comment["evidence"]:
                     evidence[url] = github.verify_evidence(url, git, number, head_sha)
             ci_url = ci.get("html_url")
