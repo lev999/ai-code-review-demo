@@ -27,8 +27,8 @@ permissions:
   pull-requests: read
   statuses: write
 concurrency:
-  group: trusted-demo-policy-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
-  cancel-in-progress: true
+  group: trusted-demo-policy
+  cancel-in-progress: false
 jobs:
   policy:
     if: (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null)
