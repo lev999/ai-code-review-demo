@@ -7,15 +7,17 @@ permissions:
   contents: read
 jobs:
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
       - run: npm ci --prefix probes/browser
-      - run: probes/browser/node_modules/.bin/playwright install --with-deps chromium
+      - run: google-chrome --version
       - run: node probes/browser/check.cjs
+        env:
+          CHROME_CHANNEL: chrome
       - uses: actions/upload-artifact@v4
         with:
           name: browser-preflight
