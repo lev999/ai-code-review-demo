@@ -1,13 +1,33 @@
 name: Demo checks
-on: [push, pull_request]
+on: [push]
 permissions:
   contents: read
 jobs:
   test:
     name: demo-tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
-      - run: python3 -m unittest discover -s tests -v
+      - name: Check installed runtimes and Chrome
+        run: |
+          python3 --version
+          node --version
+          npm --version
+          google-chrome --version
+      - name: Install locked browser dependency
+        run: make setup
+      - name: Run component, API, and browser checks
+        run: make verify
+        env:
+          CHROME_CHANNEL: chrome
+      - name: Save browser screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task-board-browser
+          path: artifacts/task-board.png
+          if-no-files-found: ignore
