@@ -520,7 +520,7 @@ def comment_decision(github, request):
     assert_current_verdict_pr(github, number, request)
     body = (
         "### SIMULATED REVIEW VERDICT\n\n"
-        "This is a simulated reviewer-agent decision. It is not a human review or approval.\n\n"
+        "An independent agent simulated the reviewer role. This is not a human review or approval.\n\n"
         f"Case ID: `{case_id}`\n\n"
         f"Decision: `{decision}`\n\n"
         f"Head SHA: `{request['head_sha']}`\n\n"

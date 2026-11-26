@@ -2,13 +2,14 @@
   "action": "verdict_comment",
   "pr_number": 5,
   "case_id": "H7",
-  "head_sha": "dfd654fbad36bcc431cb1c66b82fe4e52ad4ebfc",
+  "head_sha": "4e24d7ca64b8130e0c219b4634db66402abfbad1",
   "base_branch": "main",
   "base_sha": "1bb96ff0dc41e6cfecdcd3521653ebbdc23762c3",
   "decision": "changes_requested",
-  "reason": "The independently reviewed tests passed. Require the automation to invalidate the prior status before posting a new simulated verdict and invoke the trusted workflow afterward. Verify that the trusted status uses the evaluated pull request and verdict data.",
+  "reason": "The bot now invalidates the status and asks the trusted workflow to recheck the comment. Use one concurrency group for both workflows so an earlier policy run cannot publish success between invalidation and the new verdict.",
   "evidence_links": [
     "https://github.com/lev999/ai-code-review-demo/pull/5/files",
-    "https://github.com/lev999/ai-code-review-demo/actions/runs/45893539931"
+    "https://github.com/lev999/ai-code-review-demo/actions/runs/45894448314",
+    "https://github.com/lev999/ai-code-review-demo/actions/runs/45894384150"
   ]
 }

@@ -8,7 +8,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: pr-automation-support-branch
+  group: trusted-demo-policy
   cancel-in-progress: false
 
 jobs:
