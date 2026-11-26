@@ -5,10 +5,13 @@
   "head_sha": "312da3e35e0d2653a33461b6934ab3461c019cdb",
   "base_branch": "main",
   "base_sha": "60a8a4c2cffe3096c3c6d61577ff32bd6afedbb8",
-  "decision": "changes_requested",
-  "reason": "This first simulated review packet contains the green CI summary. Attach the execution results for the two-task move and the rejected mixed batch, including the checks of both SQLite rows after reload on this same head.",
+  "decision": "approved",
+  "reason": "The independent reviewer inspected the detailed hosted output and the linked assertions. The successful move persists both Done rows after reload. The mixed batch is rejected and preserves both original rows. The exact head and hosted job are the same as in the first review.",
   "evidence_links": [
     "https://github.com/lev999/ai-code-review-demo/pull/7/files",
-    "https://github.com/lev999/ai-code-review-demo/actions/runs/45896366739"
-  ]
+    "https://github.com/lev999/ai-code-review-demo/actions/runs/45896366739/job/140171144529",
+    "https://github.com/lev999/ai-code-review-demo/blob/312da3e35e0d2653a33461b6934ab3461c019cdb/web/tests/e2e/test_batch_moves.mjs",
+    "https://github.com/lev999/ai-code-review-demo/blob/312da3e35e0d2653a33461b6934ab3461c019cdb/specs/move-two-tasks.feature"
+  ],
+  "supersedes": 7203512892
 }
