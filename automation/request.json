@@ -1,16 +1,9 @@
 {
-  "action": "verdict_comment",
-  "pr_number": 5,
-  "case_id": "H7",
-  "head_sha": "cf8bd7dd5afbdb6567f8afb1c21dc4d07caacc9e",
+  "action": "open_pr",
+  "head_branch": "demo/routine-title-normalization",
+  "head_sha": "3839aca5214cc0a013784902302cbb6e35915c05",
   "base_branch": "main",
-  "base_sha": "1bb96ff0dc41e6cfecdcd3521653ebbdc23762c3",
-  "decision": "approved",
-  "reason": "Independent review verified the protected inputs, exact routine patch calculation, required-test removal precedence, and source checks. The workflows serialize verdict updates and policy evaluation. The current head passed the hosted test job and twenty local policy fixtures.",
-  "evidence_links": [
-    "https://github.com/lev999/ai-code-review-demo/pull/5/files",
-    "https://github.com/lev999/ai-code-review-demo/commit/cf8bd7dd5afbdb6567f8afb1c21dc4d07caacc9e",
-    "https://github.com/lev999/ai-code-review-demo/actions/runs/45895777970/job/140169175890",
-    "https://github.com/lev999/ai-code-review-demo/actions/runs/45894923230"
-  ]
+  "base_sha": "d7258ef3464b33612e68ccc4498e07faf42a8fb2",
+  "title": "Extract task title normalization without changing behavior",
+  "body": "Simulation case: routine\nRules added, changed, and removed (give IDs or write none): none. The SIMULATED FEATURE REQUEST and SIMULATED PRODUCT RULES stay in effect.\nOld behavior: The API removes leading and trailing whitespace from task titles with an inline call to strip.\nNew behavior: The same call is in normalize_title. Task selection, persistence, and API responses follow the same rules.\nTests added: [api/tests/test_task_text.py](https://github.com/lev999/ai-code-review-demo/blob/3839aca5214cc0a013784902302cbb6e35915c05/api/tests/test_task_text.py)\nTests removed: none\nRelevant tests and runs: [exact change](https://github.com/lev999/ai-code-review-demo/commit/3839aca5214cc0a013784902302cbb6e35915c05) [hosted checks](https://github.com/lev999/ai-code-review-demo/actions/runs/45896107761)\nReviewer role: not required"
 }
