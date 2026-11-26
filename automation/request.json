@@ -2,14 +2,14 @@
   "action": "verdict_comment",
   "pr_number": 5,
   "case_id": "H7",
-  "head_sha": "4e24d7ca64b8130e0c219b4634db66402abfbad1",
+  "head_sha": "cb0140578ba308e72b1c9b507376b2a5fb880e59",
   "base_branch": "main",
   "base_sha": "1bb96ff0dc41e6cfecdcd3521653ebbdc23762c3",
   "decision": "changes_requested",
-  "reason": "The bot now invalidates the status and asks the trusted workflow to recheck the comment. Use one concurrency group for both workflows so an earlier policy run cannot publish success between invalidation and the new verdict.",
+  "reason": "The workflow ordering check passed. The bot used a different reviewer-role sentence than the trusted parser expects. Match the sentence and test the emitted comment against the parser.",
   "evidence_links": [
     "https://github.com/lev999/ai-code-review-demo/pull/5/files",
-    "https://github.com/lev999/ai-code-review-demo/actions/runs/45894448314",
-    "https://github.com/lev999/ai-code-review-demo/actions/runs/45894384150"
+    "https://github.com/lev999/ai-code-review-demo/actions/runs/45894683562",
+    "https://github.com/lev999/ai-code-review-demo/actions/runs/45894614762"
   ]
 }
