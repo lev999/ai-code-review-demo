@@ -7,6 +7,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: pr-automation-support-branch
+  cancel-in-progress: false
+
 jobs:
   automate:
     if: github.repository == 'lev999/ai-code-review-demo'
@@ -16,6 +20,8 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+      statuses: write
+      actions: write
     steps:
       - name: Check out the pushed support revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

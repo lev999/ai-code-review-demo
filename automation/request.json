@@ -1,9 +1,14 @@
 {
-  "action": "open_pr",
-  "head_branch": "demo/trusted-feature-policy",
+  "action": "verdict_comment",
+  "pr_number": 5,
+  "case_id": "H7",
   "head_sha": "dfd654fbad36bcc431cb1c66b82fe4e52ad4ebfc",
   "base_branch": "main",
   "base_sha": "1bb96ff0dc41e6cfecdcd3521653ebbdc23762c3",
-  "title": "Protect the task-board checks with trusted review policy",
-  "body": "Simulation case: feature\nRules added, changed, and removed (give IDs or write none): Preserve the task-board rules. Install the trusted review policy for the SIMULATED FEATURE REQUEST and SIMULATED PRODUCT RULES.\nOld behavior: The bootstrap gate protected two smoke tests and accepted an exact-head dispatch input.\nNew behavior: The protected base defines five required tests, the known patch digest, reportable code review cases, and proof of exact-head CI and simulated verdicts. No task-board behavior changes.\nTests added: [tests/test_policy_gate.py](https://github.com/lev999/ai-code-review-demo/blob/dfd654fbad36bcc431cb1c66b82fe4e52ad4ebfc/tests/test_policy_gate.py)\nTests removed: none\nRelevant tests and runs: [change](https://github.com/lev999/ai-code-review-demo/commit/dfd654fbad36bcc431cb1c66b82fe4e52ad4ebfc) [CI](https://github.com/lev999/ai-code-review-demo/actions/runs/45893539931)\nReviewer role: simulated by an independent agent"
+  "decision": "changes_requested",
+  "reason": "The independently reviewed tests passed. Require the automation to invalidate the prior status before posting a new simulated verdict and invoke the trusted workflow afterward. Verify that the trusted status uses the evaluated pull request and verdict data.",
+  "evidence_links": [
+    "https://github.com/lev999/ai-code-review-demo/pull/5/files",
+    "https://github.com/lev999/ai-code-review-demo/actions/runs/45893539931"
+  ]
 }

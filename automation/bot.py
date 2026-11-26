@@ -343,6 +343,149 @@ def list_comments(github, number):
     fail("comment list is too large to inspect safely")
 
 
+def list_statuses(github, sha):
+    query = urllib.parse.urlencode({"per_page": "100"})
+    result = github.request("GET", api_path(f"commits/{sha}/statuses") + "?" + query)
+    if not isinstance(result, list):
+        fail("GitHub returned an invalid commit status list")
+    return result
+
+
+def assert_current_verdict_pr(github, number, request):
+    pr = github.request("GET", api_path(f"pulls/{number}"))
+    try:
+        request["head_branch"] = require_branch(pr["head"]["ref"], "PR head branch")
+    except (KeyError, TypeError):
+        fail("GitHub returned an incomplete pull request")
+    verify_pull_request(pr, request)
+    if pr["user"]["login"] != BOT_LOGIN:
+        fail("pull request author is not the GitHub Actions bot")
+    if request["base_branch"] != "main":
+        fail("verdict requests must target main")
+    check_refs(github, request)
+    return pr
+
+
+def ensure_pending_status(github, sha):
+    context = "demo-policy"
+    description = "Simulated verdict update pending trusted evaluation"
+
+    def matching_status():
+        statuses = [s for s in list_statuses(github, sha) if s.get("context") == context]
+        if not statuses:
+            return None
+        latest = max(statuses, key=lambda s: s.get("created_at", ""))
+        if latest.get("state") == "pending" and latest.get("description") == description:
+            if latest.get("creator", {}).get("login") != BOT_LOGIN:
+                fail("pending policy status is not authored by the GitHub Actions bot")
+            if latest.get("sha", sha) != sha:
+                fail("pending policy status has a stale head")
+            return latest
+        return None
+
+    existing = matching_status()
+    if existing:
+        return existing
+    payload = {"state": "pending", "context": context, "description": description}
+    try:
+        status = github.request("POST", api_path(f"statuses/{sha}"), payload)
+    except UncertainWrite:
+        status = matching_status()
+        if status is None:
+            raise BotError("pending status write is uncertain; no exact status exists")
+        return status
+    if (status.get("sha", sha) != sha or status.get("state") != "pending"
+            or status.get("context") != context or status.get("description") != description
+            or status.get("creator", {}).get("login") != BOT_LOGIN):
+        fail("GitHub returned a conflicting pending policy status")
+    return status
+
+
+def verdict_fields(body):
+    heading = "### SIMULATED REVIEW VERDICT"
+    if not body.startswith(heading + "\n"):
+        return None
+    fields = {}
+    for name in ("Case ID", "Decision", "Head SHA", "Supersedes comment ID"):
+        match = re.search(rf"^{re.escape(name)}: `([^`]+)`$", body, re.MULTILINE)
+        if match:
+            fields[name] = match.group(1)
+    if not all(key in fields for key in ("Case ID", "Decision", "Head SHA")):
+        fail("a prior simulated verdict comment is malformed")
+    if fields["Decision"] not in ("approved", "changes_requested"):
+        fail("a prior simulated verdict has an unknown decision")
+    if not SHA_RE.fullmatch(fields["Head SHA"]):
+        fail("a prior simulated verdict has an invalid head SHA")
+    if "Supersedes comment ID" in fields and not fields["Supersedes comment ID"].isdigit():
+        fail("a prior simulated verdict has an invalid superseded comment ID")
+    return {
+        "case_id": fields["Case ID"],
+        "decision": fields["Decision"],
+        "head_sha": fields["Head SHA"],
+        "supersedes": int(fields["Supersedes comment ID"])
+        if "Supersedes comment ID" in fields else None,
+    }
+
+
+def verdict_history(comments, case_id, head_sha):
+    history = []
+    for comment in comments:
+        body = comment.get("body", "")
+        fields = verdict_fields(body)
+        if fields is None or fields["case_id"] != case_id or fields["head_sha"] != head_sha:
+            continue
+        if comment.get("user", {}).get("login") != BOT_LOGIN:
+            fail("a matching simulated verdict exists under a non-bot account")
+        if not isinstance(comment.get("id"), int):
+            fail("a prior simulated verdict has no comment ID")
+        fields["id"] = comment["id"]
+        fields["body"] = body
+        history.append(fields)
+    return sorted(history, key=lambda item: item["id"])
+
+
+def check_verdict_history(history, request, body):
+    decision = request["decision"]
+    supersedes = request.get("supersedes")
+    if not history:
+        if supersedes is not None:
+            fail("a verdict cannot supersede a missing decision")
+        return None
+    if len(history) == 1:
+        previous = history[0]
+        if previous["decision"] == "approved":
+            if decision == "approved" and previous["body"] == body:
+                return previous
+            fail("an approved verdict is frozen for this case and head")
+        if decision == "changes_requested":
+            if previous["body"] == body:
+                return previous
+            fail("only one negative verdict is allowed for this case and head")
+        if decision == "approved" and supersedes == previous["id"]:
+            return None
+        fail("an approved verdict must supersede the exact prior negative comment ID")
+    if len(history) == 2:
+        negative, positive = history
+        if (negative["decision"] == "changes_requested"
+                and positive["decision"] == "approved"
+                and positive.get("supersedes") == negative["id"]
+                and decision == "approved" and positive["body"] == body):
+            return positive
+    fail("verdict history conflicts with the allowed append-only sequence")
+
+
+def dispatch_policy(github, number, head_sha, decision):
+    payload = {
+        "ref": "main",
+        "inputs": {
+            "pr": str(number),
+            "head": head_sha,
+            "decision": "accept" if decision == "approved" else "defer",
+        },
+    }
+    github.request("POST", api_path("actions/workflows/policy.yml/dispatches"), payload)
+
+
 def comment_decision(github, request):
     required = {
         "action", "pr_number", "case_id", "head_sha", "base_branch", "base_sha",
@@ -374,17 +517,7 @@ def comment_decision(github, request):
             fail("request field supersedes is invalid")
         if decision != "approved":
             fail("only an approved verdict can supersede a comment")
-    pr = github.request("GET", api_path(f"pulls/{number}"))
-    try:
-        request["head_branch"] = pr["head"]["ref"]
-    except (KeyError, TypeError):
-        fail("GitHub returned an incomplete pull request")
-    verify_pull_request(pr, request)
-    if pr["user"]["login"] != BOT_LOGIN:
-        fail("pull request author is not the GitHub Actions bot")
-    if get_branch_sha(github, request["base_branch"]) != request["base_sha"]:
-        fail("base branch is stale")
-
+    assert_current_verdict_pr(github, number, request)
     body = (
         "### SIMULATED REVIEW VERDICT\n\n"
         "This is a simulated reviewer-agent decision. It is not a human review or approval.\n\n"
@@ -397,50 +530,38 @@ def comment_decision(github, request):
     if has_supersedes:
         body += f"\nSupersedes comment ID: `{supersedes}`\n"
     comments = list_comments(github, number)
-    exact = [c for c in comments if c.get("body") == body]
-    bot_exact = [c for c in exact if c.get("user", {}).get("login") == BOT_LOGIN]
-    if exact and not bot_exact:
-        fail("matching comment exists under a non-bot account")
-    if len(bot_exact) > 1:
-        fail("duplicate simulated decision comments exist")
-    if bot_exact:
-        verify_pull_request(github.request("GET", api_path(f"pulls/{number}")), request)
-        if get_branch_sha(github, request["head_branch"]) != request["head_sha"]:
-            raise StaleState("head branch is stale")
-        report("reused_simulated_decision_comment", bot_exact[0]["html_url"], BOT_LOGIN,
-               request["head_sha"])
-        return
+    history = verdict_history(comments, case_id, request["head_sha"])
+    existing = check_verdict_history(history, request, body)
 
-    if get_branch_sha(github, request["head_branch"]) != request["head_sha"]:
-        raise StaleState("head branch is stale")
-    latest = github.request("GET", api_path(f"pulls/{number}"))
-    verify_pull_request(latest, request)
-    try:
-        comment = github.request("POST", api_path(f"issues/{number}/comments"), {"body": body})
-    except UncertainWrite:
-        comments = list_comments(github, number)
-        exact = [c for c in comments if c.get("body") == body]
-        bot_exact = [c for c in exact if c.get("user", {}).get("login") == BOT_LOGIN]
-        if len(bot_exact) == 1:
-            comment = bot_exact[0]
-        elif not exact:
-            raise BotError("comment write is uncertain; no matching comment exists, inspect before retry")
-        else:
-            fail("comment write is uncertain and matching comments conflict")
-    if comment.get("user", {}).get("login") != BOT_LOGIN:
-        fail("simulated decision comment was not authored by the GitHub Actions bot")
-    final_pr = github.request("GET", api_path(f"pulls/{number}"))
-    try:
-        still_current = (
-            final_pr["head"]["sha"] == request["head_sha"]
-            and final_pr["base"]["sha"] == request["base_sha"]
+    # This trusted status invalidates an earlier success before the new comment.
+    assert_current_verdict_pr(github, number, request)
+    ensure_pending_status(github, request["head_sha"])
+    if existing is None:
+        assert_current_verdict_pr(github, number, request)
+        try:
+            comment = github.request("POST", api_path(f"issues/{number}/comments"), {"body": body})
+        except UncertainWrite:
+            comments = list_comments(github, number)
+            history = verdict_history(comments, case_id, request["head_sha"])
+            matched = check_verdict_history(history, request, body)
+            if matched is None:
+                raise BotError("comment write is uncertain; no exact bot comment exists")
+            comment = next(c for c in comments if c.get("id") == matched["id"])
+        comment_url = comment.get("html_url")
+        if comment.get("user", {}).get("login") != BOT_LOGIN or not comment_url:
+            fail("simulated verdict comment was not authored by the GitHub Actions bot")
+        result = "posted_simulated_decision_comment"
+    else:
+        comment_url = next(
+            c["html_url"] for c in comments
+            if c.get("id") == existing["id"]
         )
-    except (KeyError, TypeError):
-        still_current = False
-    if not still_current:
-        fail("head or base changed during the comment write; the labeled stale comment is retained")
-    report("posted_simulated_decision_comment", comment["html_url"],
-           comment["user"]["login"], request["head_sha"])
+        result = "reused_simulated_decision_comment"
+
+    # The policy workflow runs on main because this token cannot trigger comment events.
+    assert_current_verdict_pr(github, number, request)
+    dispatch_policy(github, number, request["head_sha"], decision)
+    report(result, comment_url, BOT_LOGIN, request["head_sha"])
 
 
 def main():
