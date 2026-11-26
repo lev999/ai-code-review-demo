@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Task board demo</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/src/app.js"></script>
+  </head>
+  <body>
+    <main class="board-shell">
+      <header>
+        <p class="eyebrow">SIMULATED FEATURE REQUEST</p>
+        <h1>Task board</h1>
+        <p>Select one task in To do and move it to Done.</p>
+      </header>
+      <section class="board" aria-label="Task board">
+        <section class="task-list" aria-labelledby="todo-heading">
+          <h2 id="todo-heading">To do</h2>
+          <ul id="todo-list" aria-label="To do tasks"></ul>
+        </section>
+        <section class="task-list" aria-labelledby="done-heading">
+          <h2 id="done-heading">Done</h2>
+          <ul id="done-list" aria-label="Done tasks"></ul>
+        </section>
+      </section>
+      <button id="move-selected" type="button" disabled>Move selected</button>
+      <p id="board-status" role="status" aria-live="polite"></p>
+    </main>
+  </body>
+</html>
