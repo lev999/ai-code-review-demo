@@ -2,14 +2,15 @@
   "action": "verdict_comment",
   "pr_number": 5,
   "case_id": "H7",
-  "head_sha": "cb0140578ba308e72b1c9b507376b2a5fb880e59",
+  "head_sha": "cf8bd7dd5afbdb6567f8afb1c21dc4d07caacc9e",
   "base_branch": "main",
   "base_sha": "1bb96ff0dc41e6cfecdcd3521653ebbdc23762c3",
-  "decision": "changes_requested",
-  "reason": "The workflow ordering check passed. The bot used a different reviewer-role sentence than the trusted parser expects. Match the sentence and test the emitted comment against the parser.",
+  "decision": "approved",
+  "reason": "Independent review verified the protected inputs, exact routine patch calculation, required-test removal precedence, and source checks. The workflows serialize verdict updates and policy evaluation. The current head passed the hosted test job and twenty local policy fixtures.",
   "evidence_links": [
     "https://github.com/lev999/ai-code-review-demo/pull/5/files",
-    "https://github.com/lev999/ai-code-review-demo/actions/runs/45894683562",
-    "https://github.com/lev999/ai-code-review-demo/actions/runs/45894614762"
+    "https://github.com/lev999/ai-code-review-demo/commit/cf8bd7dd5afbdb6567f8afb1c21dc4d07caacc9e",
+    "https://github.com/lev999/ai-code-review-demo/actions/runs/45895777970/job/140169175890",
+    "https://github.com/lev999/ai-code-review-demo/actions/runs/45894923230"
   ]
 }
