@@ -1,9 +1,9 @@
 {
   "action": "open_pr",
-  "head_branch": "demo/routine-title-normalization",
-  "head_sha": "3839aca5214cc0a013784902302cbb6e35915c05",
+  "head_branch": "demo/move-two-tasks",
+  "head_sha": "312da3e35e0d2653a33461b6934ab3461c019cdb",
   "base_branch": "main",
-  "base_sha": "d7258ef3464b33612e68ccc4498e07faf42a8fb2",
-  "title": "Extract task title normalization without changing behavior",
-  "body": "Simulation case: routine\nRules added, changed, and removed (give IDs or write none): none. The SIMULATED FEATURE REQUEST and SIMULATED PRODUCT RULES stay in effect.\nOld behavior: The API removes leading and trailing whitespace from task titles with an inline call to strip.\nNew behavior: The same call is in normalize_title. Task selection, persistence, and API responses follow the same rules.\nTests added: [api/tests/test_task_text.py](https://github.com/lev999/ai-code-review-demo/blob/3839aca5214cc0a013784902302cbb6e35915c05/api/tests/test_task_text.py)\nTests removed: none\nRelevant tests and runs: [exact change](https://github.com/lev999/ai-code-review-demo/commit/3839aca5214cc0a013784902302cbb6e35915c05) [hosted checks](https://github.com/lev999/ai-code-review-demo/actions/runs/45896107761)\nReviewer role: not required"
+  "base_sha": "60a8a4c2cffe3096c3c6d61577ff32bd6afedbb8",
+  "title": "Allow two selected tasks to move together",
+  "body": "Simulation case: judgment\nRules added, changed, and removed (give IDs or write none): Change RULE-SELECT-002. Add RULE-MOVE-002 and RULE-API-004. Remove none. These are SIMULATED PRODUCT RULES for the SIMULATED FEATURE REQUEST.\nOld behavior: Move selected accepted exactly one task in To do. Two selected tasks kept the button disabled.\nNew behavior: Move selected accepts one or two distinct tasks. A new batch API moves two tasks together in one SQLite transaction. The one-task API contract remains in effect. A mixed invalid batch leaves both rows unchanged.\nTests added: [api/tests/test_batch_tasks_api.py](https://github.com/lev999/ai-code-review-demo/blob/312da3e35e0d2653a33461b6934ab3461c019cdb/api/tests/test_batch_tasks_api.py) [web/tests/e2e/test_batch_moves.mjs](https://github.com/lev999/ai-code-review-demo/blob/312da3e35e0d2653a33461b6934ab3461c019cdb/web/tests/e2e/test_batch_moves.mjs)\nTests removed: none\nRelevant tests and runs: [updated web/tests/task_state.test.js](https://github.com/lev999/ai-code-review-demo/blob/312da3e35e0d2653a33461b6934ab3461c019cdb/web/tests/task_state.test.js) [exact change](https://github.com/lev999/ai-code-review-demo/commit/312da3e35e0d2653a33461b6934ab3461c019cdb) [hosted checks](https://github.com/lev999/ai-code-review-demo/actions/runs/45896366739)\nReviewer role: simulated by an independent agent"
 }
