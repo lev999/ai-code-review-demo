@@ -1,0 +1,7 @@
+{
+  "name": "two-list-browser-preflight",
+  "private": true,
+  "dependencies": {
+    "playwright": "1.55.0"
+  }
+}

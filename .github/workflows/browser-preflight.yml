@@ -1,0 +1,22 @@
+name: Hosted browser preflight
+on:
+  push:
+    branches: [demo/hosted-browser-preflight]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: npm ci --prefix probes/browser
+      - run: probes/browser/node_modules/.bin/playwright install --with-deps chromium
+      - run: node probes/browser/check.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browser-preflight
+          path: browser-preflight.png
