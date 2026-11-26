@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "tests": [
+    {
+      "id": "smoke-move",
+      "path": "tests/test_move.py",
+      "sha256": "e1c798b7d8c0e26d06f4fd40bc406386745189db1d438b0389976af8bca7ec6c"
+    },
+    {
+      "id": "smoke-preserve",
+      "path": "tests/test_preserve.py",
+      "sha256": "0a0efdb09c9d662feb6e725e90c0b73dcb20bdddfd1d95751436df497196cd51"
+    },
+    {
+      "id": "board-selection",
+      "path": "web/tests/task_state.test.js",
+      "sha256": "2648abf1ed6cf751d597ecf544437da0ab3d0af34a2e5b3b822588988e2d9c7a"
+    },
+    {
+      "id": "task-api",
+      "path": "api/tests/test_tasks_api.py",
+      "sha256": "a1e5da83ab4370b28bb5fca771346d8db2305a08ad1267352d9775823b322818"
+    },
+    {
+      "id": "browser-reload",
+      "path": "web/tests/e2e/test_board.mjs",
+      "sha256": "aa0f2449ccf9f7b6136cc01b80b77e22130cd183891fb6a2901771f05854b2cd"
+    }
+  ]
+}

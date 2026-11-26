@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "trusted_base": {
+    "first_parent": "1bb96ff0dc41e6cfecdcd3521653ebbdc23762c3",
+    "anchors": {
+      "policy/gate.py": "a8d858fe740293d78b332e42fc697ced1357f0513257b33f127fb0840e4b9dbf",
+      ".github/workflows/policy.yml": "e55cca8067dacbbc03a32a4795d285a639f41c6bcc8bef8b8c621a039d789899",
+      ".github/workflows/ci.yml": "ff763a9b80f5e1dd99f5956f6164223caf019179a396a5c886cf82c000c45e7c",
+      "api/app.py": "0b422832fad121500888d560815e1037dc31b0eb75762bd5524b9a2200cad9b5",
+      "policy/required-tests.json": "2ff3afbd463914894955342da909c13d39c77281929c26babb1f3da1e727526e"
+    }
+  },
+  "patches": [
+    {
+      "id": "routine-title-normalization",
+      "paths": [
+        "api/app.py",
+        "api/task_text.py",
+        "api/tests/test_task_text.py"
+      ],
+      "sha256": "a166d17c33d2d7015b59da59936fc222d8aec3839546b11c1c19d50ee98da164"
+    }
+  ]
+}

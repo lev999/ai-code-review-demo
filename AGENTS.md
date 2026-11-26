@@ -24,6 +24,14 @@ These are the initial rules for the task-board feature. Each ID is stable. A lat
 - RULE-DATA-001: Store a stable text ID as the primary key, a text title, a list_name value constrained to todo or done, and an integer position. Seed only an empty database. Use a fresh temporary SQLite file in tests.
 - RULE-TEST-001: Keep the component, API, and browser persistence checks as separate required tests with stable IDs and trusted hashes. The browser check reads both lists after reload and checks the SQLite rows.
 
+### SIMULATED PRODUCT RULES: H8 routine example
+
+This separate note defines the planned, behavior-preserving title-normalization example. It does not change the simulated feature request, the original rule IDs, or `RULE-TEST-001`.
+
+- The H8 patch may move the existing `row["title"].strip()` behavior into `api/task_text.py` as `normalize_title(value)`, which returns `value.strip()`.
+- The patch may add the focused unit test `api/tests/test_task_text.py` for this helper.
+- The new test is additional. Keep every original bootstrap, component, API, and browser check unchanged. Keep their paths, IDs, hashes, and commands unchanged, and continue to run all of them. The new test must not replace or weaken an original check.
+
 ## Feature-to-spec workflow
 
 1. Read the exact synthetic request and these rules before changing application code.

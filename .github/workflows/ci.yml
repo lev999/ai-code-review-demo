@@ -31,3 +31,20 @@ jobs:
           name: task-board-browser
           path: artifacts/task-board.png
           if-no-files-found: ignore
+  demo-remaining-tests:
+    name: demo-remaining-tests
+    if: ${{ always() && needs.test.result == 'failure' }}
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check installed runtimes
+        run: |
+          python3 --version
+          node --version
+      - name: Run remaining component and API checks
+        run: make component api
