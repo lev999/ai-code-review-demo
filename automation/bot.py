@@ -2,6 +2,7 @@
 """Run one public PR or simulated-verdict request from this trusted revision."""
 
 import email.utils
+import hashlib
 import json
 import os
 import re
@@ -564,6 +565,63 @@ def comment_decision(github, request):
     report(result, comment_url, BOT_LOGIN, request["head_sha"])
 
 
+def verify_merged_feature_pr(pr):
+    try:
+        exact = (
+            pr["number"] == 4
+            and pr["head"]["repo"]["full_name"] == REPOSITORY
+            and pr["base"]["repo"]["full_name"] == REPOSITORY
+            and pr["head"]["sha"] == "d5ae35f0ae14c41d77a28b36e3a3f6f1b2ca8a95"
+            and pr["base"]["ref"] == "main"
+            and pr["state"] == "closed"
+            and pr["merged"] is True
+            and pr["user"]["login"] == BOT_LOGIN
+        )
+    except (KeyError, TypeError):
+        fail("GitHub returned an incomplete feature pull request")
+    if not exact:
+        fail("PR #4 does not match the approved merged feature")
+
+
+def update_pr_body(github, request):
+    require_exact_keys(request, {
+        "action", "pr_number", "head_sha", "expected_body_sha256", "body"
+    })
+    if request["action"] != "update_pr_body":
+        fail("request action is invalid")
+    if (not isinstance(request["pr_number"], int) or isinstance(request["pr_number"], bool)
+            or request["pr_number"] != 4):
+        fail("body update is allowed only for PR #4")
+    if request["head_sha"] != "d5ae35f0ae14c41d77a28b36e3a3f6f1b2ca8a95":
+        fail("body update head does not match the approved feature")
+    expected_hash = request["expected_body_sha256"]
+    if not isinstance(expected_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_hash):
+        fail("request field expected_body_sha256 is invalid")
+    body = require_text(request["body"], "body", 65536)
+    for marker in ("SIMULATED FEATURE REQUEST", "SIMULATED PRODUCT RULES"):
+        if marker not in body:
+            fail("pull request body must label simulated inputs")
+
+    pr = github.request("GET", api_path("pulls/4"))
+    verify_merged_feature_pr(pr)
+    if pr.get("body") == body:
+        report("reused_pr_body", pr["html_url"], pr["user"]["login"], request["head_sha"])
+        return
+    old_body = pr.get("body")
+    if not isinstance(old_body, str):
+        fail("current PR body is not text")
+    actual_hash = hashlib.sha256(old_body.encode("utf-8")).hexdigest()
+    if actual_hash != expected_hash:
+        fail("current PR body does not match the expected old body hash")
+
+    updated = github.request("PATCH", api_path("pulls/4"), {"body": body})
+    verify_merged_feature_pr(updated)
+    if updated.get("body") != body:
+        fail("GitHub did not save the requested PR body")
+    report("updated_pr_body", updated["html_url"], updated["user"]["login"],
+           request["head_sha"])
+
+
 def main():
     token = check_run_context()
     request = load_request()
@@ -575,6 +633,8 @@ def main():
         open_pull_request(github, request)
     elif action == "verdict_comment":
         comment_decision(github, request)
+    elif action == "update_pr_body":
+        update_pr_body(github, request)
     else:
         fail("request action is unknown")
 
