@@ -305,7 +305,16 @@ def open_pull_request(github, request):
             raise BotError("PR write is uncertain; no matching PR exists, inspect state before retry")
         else:
             fail("PR write is uncertain and multiple matching PRs exist")
-    verify_pull_request(pr, request)
+    try:
+        verify_pull_request(pr, request)
+    except StaleState:
+        if created and pr.get("user", {}).get("login") == BOT_LOGIN:
+            try:
+                github.request("PATCH", api_path(f"pulls/{pr['number']}"), {"state": "closed"})
+            except BotError:
+                fail("new PR has a stale head or base; automatic close failed")
+            fail("new PR had a stale head or base and was closed")
+        raise
     if pr.get("title") != request["title"] or pr.get("body") != request["body"]:
         fail("created or reused pull request content conflicts with the request")
     try:
@@ -354,12 +363,13 @@ def comment_decision(github, request):
     reason = require_text(request["reason"], "reason", 4000)
     links = request["evidence_links"]
     if (not isinstance(links, list) or not links or len(links) > 20
-            or any(not isinstance(link, str)
+            or any(not isinstance(link, str) or any(ch.isspace() for ch in link)
                    or not link.startswith("https://github.com/lev999/ai-code-review-demo/")
                    or len(link) > 1000 for link in links)):
         fail("request field evidence_links must contain public repository links")
+    has_supersedes = "supersedes" in request
     supersedes = request.get("supersedes")
-    if supersedes is not None:
+    if has_supersedes:
         if isinstance(supersedes, bool) or not isinstance(supersedes, int) or supersedes < 1:
             fail("request field supersedes is invalid")
         if decision != "approved":
@@ -384,7 +394,7 @@ def comment_decision(github, request):
         f"Reason:\n{reason}\n\n"
         "Evidence:\n" + "\n".join(f"- {link}" for link in links) + "\n"
     )
-    if supersedes is not None:
+    if has_supersedes:
         body += f"\nSupersedes comment ID: `{supersedes}`\n"
     comments = list_comments(github, number)
     exact = [c for c in comments if c.get("body") == body]
