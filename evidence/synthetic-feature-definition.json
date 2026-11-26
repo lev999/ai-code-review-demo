@@ -1,0 +1,92 @@
+{
+  "record_type": "synthetic feature definition",
+  "labels": [
+    "SYNTHETIC FEATURE REQUEST",
+    "SIMULATED FEATURE REQUEST",
+    "SYNTHETIC AGENT RULES",
+    "SIMULATED PRODUCT RULES"
+  ],
+  "checks_observed_at_utc": "2026-11-26T20:15:24Z",
+  "provenance": {
+    "executor_role": "Codex demo executor",
+    "executor_task": "demo_feature_rules",
+    "executor_model": "unknown",
+    "human_author": "No real author supplied or approved the request.",
+    "reviewer": "unknown; no review was requested for this definition",
+    "source_documents": [
+      "Two-list demo and LinkedIn post series",
+      "Implementation handoff: two-list review demo"
+    ]
+  },
+  "artifacts": {
+    "request": {
+      "path": "specs/synthetic-feature-request.md",
+      "sha256": "9223026453986223558a00ee38bdd04b3a7599408711ba5a47a38104b8ae5b14",
+      "created_at_utc": "2026-11-26T20:10:53.544054684Z",
+      "source_text_match": "exact byte-for-byte match to the ready-to-run brief in the series plan"
+    },
+    "standing_rules": {
+      "path": "AGENTS.md",
+      "sha256": "66aaae5b106aefd04186efb472eb4dbeb98325ae7960f30cfb0d71fe986609da",
+      "created_at_utc": "2026-11-26T20:10:53.541055673Z"
+    },
+    "behavior_specification": {
+      "path": "specs/move-one-task.feature",
+      "sha256": "26028ee4934d0d81eb0df8fd146755644e86e387661b1d0b4bd4e755be8c5d11",
+      "created_at_utc": "2026-11-26T20:11:11.070072655Z"
+    },
+    "manifest_sha256": "not recorded because this manifest cannot contain its own final hash"
+  },
+  "pre_code_checks": {
+    "checkout_at_start": {
+      "head": "8d6f39d2a48d432505fca68e9aa3298f7778bce9",
+      "main": "8d6f39d2a48d432505fca68e9aa3298f7778bce9",
+      "origin_main": "8d6f39d2a48d432505fca68e9aa3298f7778bce9",
+      "worktree": "clean before this task's edits",
+      "exact_check_time_utc": "unknown"
+    },
+    "existing_smoke_fixture_at_base": {
+      "status": "all listed files were tracked at the base commit",
+      "files": [
+        {
+          "path": "board.py",
+          "sha256": "d7eaa86e7dbc2f06412f1aec59ef5a4d221fb6c9b2978fca37f52edcfcaac496"
+        },
+        {
+          "path": "tests/test_move.py",
+          "sha256": "e1c798b7d8c0e26d06f4fd40bc406386745189db1d438b0389976af8bca7ec6c"
+        },
+        {
+          "path": "tests/test_preserve.py",
+          "sha256": "0a0efdb09c9d662feb6e725e90c0b73dcb20bdddfd1d95751436df497196cd51"
+        }
+      ]
+    },
+    "infrastructure_preflight": [
+      {
+        "check": "Hosted browser and SQLite reload probe",
+        "result": "passed, as recorded by the preflight",
+        "url": "https://github.com/lev999/ai-code-review-demo/actions/runs/45887199613",
+        "scope": "infrastructure smoke only; not the complete two-list feature"
+      }
+    ],
+    "definition_checks": {
+      "request_matches_source_brief": true,
+      "artifact_hashes_match": true,
+      "request_and_rules_exist_before_full_feature_implementation": true,
+      "stable_rule_ids_recorded": true,
+      "gherkin_scenarios_link_to_planned_executable_checks": true,
+      "full_feature_implementation_started": false,
+      "basis_for_implementation_status": [
+        "The coordinator confirmed that H4 implementation had not started.",
+        "The existing H2 scaffold returns status 501 for the move API.",
+        "The existing task selection module returns false for all selections."
+      ],
+      "sequence_note": "The H2 scaffold existed before these definition files. It omits full feature behavior. The coordinator will commit the definition files before the separate skeleton and red-test commits."
+    },
+    "checks_not_run_by_this_task": [
+      "No application tests were run.",
+      "No make verify result was produced."
+    ]
+  }
+}
