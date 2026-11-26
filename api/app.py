@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from api.db import connect, initialize
+from api.task_text import normalize_title
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,7 +49,7 @@ def handler_for(db_path: str | Path):
                 lists = {"todo": [], "done": []}
                 for row in rows:
                     lists[row["list_name"]].append(
-                        {"id": row["id"], "title": row["title"].strip()}
+                        {"id": row["id"], "title": normalize_title(row["title"])}
                     )
                 self.send_json(200, {"lists": lists})
                 return
