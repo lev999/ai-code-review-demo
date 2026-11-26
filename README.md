@@ -4,9 +4,9 @@ This repository demonstrates review decisions for a small task board. The featur
 
 ## Implemented feature
 
-The board starts with two tasks in **To do**. When exactly one task is selected, the user can move it to **Done**. The app saves the move in SQLite. After reload, both lists show the saved state, and the other task stays in **To do**.
+The board starts with two tasks in **To do**. The initial one-task rule lets a user move exactly one selected task through the existing one-task API. The agent-authored simulated product decision in [the two-task behavior spec](specs/move-two-tasks.feature) changes the selection rule to allow one or two tasks. A two-task move uses a separate batch API and saves both rows in one SQLite transaction. The one-task API contract and reload behavior stay in place.
 
-The checks cover button state, API behavior, browser persistence, and SQLite rows. The API also checks unknown task IDs and tasks that are not in **To do**.
+The checks cover button state, the one-task API, the two-task API, browser persistence, and SQLite rows. They also cover unknown task IDs, tasks outside **To do**, and a mixed two-task batch that must leave both rows unchanged.
 
 ## Run locally
 

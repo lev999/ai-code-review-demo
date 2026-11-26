@@ -49,21 +49,25 @@ async function loadBoard() {
 moveButton.addEventListener("click", async () => {
   if (!canMoveSelected([...selectedIds], todoIds)) return;
 
-  const [taskId] = selectedIds;
+  const taskIds = [...selectedIds];
+  const isBatchMove = taskIds.length === 2;
   moveButton.disabled = true;
-  status.textContent = "Moving task…";
+  status.textContent = isBatchMove ? "Moving tasks…" : "Moving task…";
   try {
-    const response = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/move-to-done`, {
+    const endpoint = isBatchMove
+      ? "/api/tasks/move-selected-to-done"
+      : `/api/tasks/${encodeURIComponent(taskIds[0])}/move-to-done`;
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: "{}",
+      body: JSON.stringify(isBatchMove ? { task_ids: taskIds } : {}),
     });
     if (!response.ok) {
       throw new Error(`Move request failed: ${response.status}`);
     }
     selectedIds.clear();
     await loadBoard();
-    status.textContent = "Task moved to Done.";
+    status.textContent = isBatchMove ? "Tasks moved to Done." : "Task moved to Done.";
   } catch (error) {
     status.textContent = "The task could not be moved.";
     updateMoveButton();

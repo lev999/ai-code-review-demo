@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB_ROOT = ROOT / "web"
 DEFAULT_DB_PATH = Path(__file__).resolve().parent / "tasks.sqlite3"
 TASK_MOVE_PATH = re.compile(r"^/api/tasks/([^/]+)/move-to-done$")
+BATCH_MOVE_PATH = "/api/tasks/move-selected-to-done"
 STATIC_FILES = {
     "/src/app.js": (WEB_ROOT / "src" / "app.js", "text/javascript; charset=utf-8"),
     "/src/task_state.js": (WEB_ROOT / "src" / "task_state.js", "text/javascript; charset=utf-8"),
@@ -63,6 +64,62 @@ def handler_for(db_path: str | Path):
 
         def do_POST(self) -> None:
             path = urlsplit(self.path).path
+            if path == BATCH_MOVE_PATH:
+                try:
+                    content_length = int(self.headers.get("Content-Length", ""))
+                    if content_length < 1 or content_length > 4096:
+                        raise ValueError("Invalid request size")
+                    payload = json.loads(self.rfile.read(content_length))
+                    task_ids = payload["task_ids"]
+                    if (
+                        not isinstance(task_ids, list)
+                        or len(task_ids) != 2
+                        or any(not isinstance(task_id, str) or not task_id for task_id in task_ids)
+                        or len(set(task_ids)) != 2
+                    ):
+                        raise ValueError("Exactly two distinct task IDs are required")
+                except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                    self.send_json(400, {"error": "Exactly two distinct task IDs are required"})
+                    return
+
+                with closing(connect(db_path)) as connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    placeholders = ", ".join("?" for _ in task_ids)
+                    rows = connection.execute(
+                        f"SELECT id, list_name FROM tasks WHERE id IN ({placeholders})",
+                        task_ids,
+                    ).fetchall()
+                    rows_by_id = {row["id"]: row for row in rows}
+
+                    if len(rows_by_id) != len(task_ids):
+                        connection.rollback()
+                        result = (404, {"error": "One or more tasks were not found"})
+                    elif any(rows_by_id[task_id]["list_name"] != "todo" for task_id in task_ids):
+                        connection.rollback()
+                        result = (409, {"error": "Every task must be in To do"})
+                    else:
+                        next_position = connection.execute(
+                            "SELECT COALESCE(MAX(position), -1) + 1 "
+                            "FROM tasks WHERE list_name = 'done'"
+                        ).fetchone()[0]
+                        updated_count = 0
+                        for offset, task_id in enumerate(task_ids):
+                            updated = connection.execute(
+                                "UPDATE tasks SET list_name = 'done', position = ? "
+                                "WHERE id = ? AND list_name = 'todo'",
+                                (next_position + offset, task_id),
+                            )
+                            updated_count += updated.rowcount
+                        if updated_count != len(task_ids):
+                            connection.rollback()
+                            result = (409, {"error": "Every task must be in To do"})
+                        else:
+                            connection.commit()
+                            result = (200, {"ids": task_ids, "list": "done"})
+
+                self.send_json(*result)
+                return
+
             match = TASK_MOVE_PATH.fullmatch(path)
             if match is None:
                 self.send_json(404, {"error": "Not found"})
