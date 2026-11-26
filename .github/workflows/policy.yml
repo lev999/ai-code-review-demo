@@ -1,0 +1,32 @@
+name: Trusted demo policy
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        required: true
+        type: string
+      head:
+        required: true
+        type: string
+      decision:
+        required: true
+        type: choice
+        options: [accept, defer]
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+      - run: python3 policy/gate.py
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
