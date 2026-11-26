@@ -21,17 +21,20 @@ make verify
 
 The service seeds an empty database with **Write one small test** and **Check the board state**. It uses SQLite and reads the database path from `DEMO_DB_PATH` when that variable is set. Tests use temporary databases.
 
-## Hosted feature evidence
+## Hosted feature record
 
-[Pull request #4](https://github.com/lev999/ai-code-review-demo/pull/4) shows the test-first feature change. The red run failed on test-only commit `f0b53c98878cfb6dbc114592e71d44a74aaf2cc5`, when moving a task was not implemented. The green run passed on implementation commit `027c33f990b4a7152f882eaf9e16d0dc87e26993`.
+[Pull request #4](https://github.com/lev999/ai-code-review-demo/pull/4) is merged at [merge commit `1bb96ff`](https://github.com/lev999/ai-code-review-demo/commit/1bb96ff0dc41e6cfecdcd3521653ebbdc23762c3). Its final reviewed head was `d5ae35f0ae14c41d77a28b36e3a3f6f1b2ca8a95`.
 
-- [Red hosted run](https://github.com/lev999/ai-code-review-demo/actions/runs/45890153327)
-- [Green hosted run](https://github.com/lev999/ai-code-review-demo/actions/runs/45890636818)
+- The test-only red run failed at `f0b53c98878cfb6dbc114592e71d44a74aaf2cc5`, before task movement was implemented: [red run](https://github.com/lev999/ai-code-review-demo/actions/runs/45890153327).
+- The first implementation run passed at `027c33f990b4a7152f882eaf9e16d0dc87e26993`: [green run](https://github.com/lev999/ai-code-review-demo/actions/runs/45890636818).
+- The final reviewed head passed the hosted `demo-tests` job: [job for `d5ae35f`](https://github.com/lev999/ai-code-review-demo/actions/runs/45891136067/job/140153813910). The accepted simulated verdict is in [the review comment](https://github.com/lev999/ai-code-review-demo/pull/4#issuecomment-7202739546), and the trusted policy run is [here](https://github.com/lev999/ai-code-review-demo/actions/runs/45891393581).
 
-## Review policy scope
+## H7 trusted policy scope
 
-This is a controlled demonstration, not a general AI risk classifier. The current trusted gate recognizes one exact routine refactor. Unclassified changes need a simulated reviewer decision. The gate blocks removal or rename of its two configured smoke tests, `tests/test_move.py` and `tests/test_preserve.py`.
+This is a controlled demonstration, not a general AI risk classifier. The H6 bootstrap gate protected `tests/test_move.py` and `tests/test_preserve.py`; it did not protect the feature tests. The H7 policy contract adds trusted rules for the full feature checks.
 
-The feature tests in `web/tests/task_state.test.js`, `api/tests/test_tasks_api.py`, and `web/tests/e2e/test_board.mjs` are present and run by `make verify`, but the current trusted test list does not protect them yet. The planned H7 policy update will add them. The current workflow checks that a dispatched decision names the current pull request head. It does not validate the source or evidence in a verdict comment.
+The H7 contract uses the gate and manifest from the protected target branch. The manifest binds each required test ID and path to a SHA-256 hash. The gate checks the pull request base and head against those trusted files. Missing or renamed required tests are blocked before routine or reviewer classification, even if a simulated verdict accepts the change.
 
-The gate does not decide that a change is safe from its size, filenames, labels, or model output. Simulated review decisions are examples only; they do not count as human approval.
+The routine example is allowed only when its full patch digest and changed-path set match the trusted entry and the actual CI checks pass on the same head. Other changes need an independent agent's simulated review. Automation records the verdict in a bot-authored comment tied to the exact head SHA. The gate validates the bot source, case, verdict, evidence, and current head. A missing, stale, malformed, conflicting, or `changes_requested` verdict stays blocked. The comment is not a GitHub review or human approval.
+
+Policy fixtures check the allowlisted routine, an unknown change with a current accepted verdict, and required-test removal even with an accepted verdict. These fixtures check controlled policy decisions. They do not prove platform outcomes for the planned H8 routine, H9 judgment, or H10 test-removal pull requests.

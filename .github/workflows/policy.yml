@@ -1,32 +1,46 @@
 name: Trusted demo policy
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
+  issue_comment:
+    types: [created, edited, deleted]
   workflow_dispatch:
     inputs:
       pr:
+        description: Pull request number
         required: true
         type: string
       head:
+        description: Exact pull request head SHA
         required: true
         type: string
       decision:
+        description: Informational only; the trusted gate reads the labeled bot comment
         required: true
         type: choice
         options: [accept, defer]
 permissions:
+  actions: read
+  checks: read
   contents: read
+  issues: read
   pull-requests: read
   statuses: write
+concurrency:
+  group: trusted-demo-policy-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
+  cancel-in-progress: true
 jobs:
   policy:
-    runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    if: (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          fetch-depth: 0
           persist-credentials: false
-      - run: python3 policy/gate.py
+      - name: Evaluate trusted policy
+        run: python3 policy/gate.py
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
